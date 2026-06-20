@@ -152,7 +152,7 @@ router.post('/message', async (req, res) => {
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.1-8b-instant',
-        max_tokens: 5,
+        max_tokens: 10,
         temperature: 0,
         messages: [
           {
@@ -202,10 +202,39 @@ Reply with ONE word only.`
       h => h.role === 'bot' && (h.message.includes('I recommend') || h.message.includes('perfect doctor') || /Dr\.\s[A-Z]/.test(h.message))
     )
 
+    // Check karo ke last bot message ne "book an appointment" poocha tha
+    const lastBotMessage = [...(chatHistory || [])].reverse().find(h => h.role === 'bot')
+    const botAskedToBook = lastBotMessage && /shall i book|book an appointment for you|proceed with.*appointment/i.test(lastBotMessage.message)
+
+    // DETERMINISTIC BOOK CHECK: agar bot ne book karne ko poocha tha aur user ne affirmative diya,
+    // toh AI classifier ko bypass karke seedha BOOK force karo — 100% reliable, naya/purana user farak nahi
+    const isAffirmative = /^(yes|yeah|yep|haan|han|ha|bilkul|sure|ok|okay|confirm|proceed|krdo|kr do|lelo|le lo|book|book karo|book krdo)[\s!.]*$/i.test(message.trim())
+    const forceBook = botAskedToBook && isAffirmative && (doctor || botRecommendedDoctor)
+
     // BOOK ko CONTINUE mein convert karo agar abhi tak koi doctor discuss nahi hua
-    let finalIntent = (intent === 'BOOK' && !doctor && !botRecommendedDoctor)
-      ? 'CONTINUE'
-      : intent
+    let finalIntent = forceBook
+      ? 'BOOK'
+      : (intent === 'BOOK' && !doctor && !botRecommendedDoctor)
+        ? 'CONTINUE'
+        : intent
+
+    if (forceBook) {
+      console.log('🔒 Deterministic override: forced BOOK (bot asked + affirmative reply)')
+    }
+
+    // DETERMINISTIC UPDATE/CANCEL CHECK: agar existing appointment hai aur message mein
+    // clear action words hain, AI classifier galat CONTINUE de bhi de, hum override karte hain
+    const hasUpdateWords = /\b(update|change|reschedule|shift|modify|updste|chnage|chnge)\b/i.test(message)
+    const hasCancelWords = /\b(cancel|delete|remove|kanslr|cncel)\b/i.test(message)
+    const notJustChecking = !/\b(what|kya|kab|when|show|check|tell me|batao)\b/i.test(message)
+
+    if (lastAppointment && finalIntent === 'CONTINUE' && hasCancelWords) {
+      console.log('🔒 Deterministic override: forced CANCEL (cancel keyword + existing appointment)')
+      finalIntent = 'CANCEL'
+    } else if (lastAppointment && finalIntent === 'CONTINUE' && hasUpdateWords && notJustChecking) {
+      console.log('🔒 Deterministic override: forced UPDATE (update keyword + existing appointment)')
+      finalIntent = 'UPDATE'
+    }
 
     // UPDATE/CANCEL ko CONTINUE mein convert karo agar koi existing appointment hi nahi hai
     if ((finalIntent === 'UPDATE' || finalIntent === 'CANCEL') && !lastAppointment) {
@@ -289,7 +318,9 @@ You are in general conversation mode. Follow these rules based on what the patie
    📋 [Credentials] | ⭐ [Experience] years experience
    🕐 Available: [Timing]
    Shall I book an appointment for you?"
-- If unclear → ask ONE short follow-up question only.`
+- If unclear → ask ONE short follow-up question only.
+
+🚫 ABSOLUTE RULE: NEVER say "I've booked", "booked an appointment", "confirmation email", "expect a call", or imply any appointment was finalized. You are NOT in booking mode right now. If the patient seems to be confirming a previous doctor recommendation, simply repeat the recommendation and ask "Shall I book an appointment for you?" again — do NOT claim it's done.`
     }
  
     // Small delay to avoid rate limit between 2 Groq calls
