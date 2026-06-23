@@ -5,7 +5,7 @@ const express = require('express')
 const router = express.Router()
 const axios = require('axios')
 const supabase = require('../config/supabase')
-const { doctorsData, emergencyDoctors } = require('../knowledge-base/doctors-data')
+const { doctors: doctorsData, emergencyDoctors } = require('../knowledge-base/doctors-data')
  
 console.log('🔑 Groq Key loaded:', process.env.GROQ_API_KEY?.substring(0, 15))
  
