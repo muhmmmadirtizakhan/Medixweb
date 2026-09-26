@@ -152,7 +152,7 @@ router.post('/message', async (req, res) => {
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'openai/gpt-oss-120b',
-        max_tokens: 10,
+    max_tokens: 50,
         temperature: 0,
         messages: [
           {
@@ -331,7 +331,7 @@ You are in general conversation mode. Follow these rules based on what the patie
       'https://api.groq.com/openai/v1/chat/completions',
       {
      model: 'openai/gpt-oss-120b',
-        max_tokens: 200,
+        max_tokens: 600,
         temperature: 0.4,
         messages: [
           {
