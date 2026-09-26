@@ -151,7 +151,7 @@ router.post('/message', async (req, res) => {
     const intentResponse = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-120b',
         max_tokens: 10,
         temperature: 0,
         messages: [
@@ -330,7 +330,7 @@ You are in general conversation mode. Follow these rules based on what the patie
     const groqResponse = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama-3.1-8b-instant',
+     model: 'openai/gpt-oss-120b',
         max_tokens: 200,
         temperature: 0.4,
         messages: [
